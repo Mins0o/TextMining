@@ -1,0 +1,58 @@
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003" ToolsVersion="4.0">
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <SchemaVersion>2.0</SchemaVersion>
+    <ProjectGuid>1d6bb6cc-84af-455c-8d14-8e0af0948fe3</ProjectGuid>
+    <ProjectHome>.</ProjectHome>
+    <StartupFile>TMEX.py</StartupFile>
+    <SearchPath>
+    </SearchPath>
+    <WorkingDirectory>.</WorkingDirectory>
+    <OutputPath>.</OutputPath>
+    <Name>TMEX</Name>
+    <RootNamespace>TMEX</RootNamespace>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
+    <DebugSymbols>true</DebugSymbols>
+    <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
+    <DebugSymbols>true</DebugSymbols>
+    <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="DataRead.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="LDA_exp.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Sections.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="TMEX.py" />
+    <Compile Include="TrendAnalysis01.py" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="data\" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="data\koreaherald_1517_0.json" />
+    <Content Include="data\koreaherald_1517_1.json" />
+    <Content Include="data\koreaherald_1517_2.json" />
+    <Content Include="data\koreaherald_1517_3.json" />
+    <Content Include="data\koreaherald_1517_4.json" />
+    <Content Include="data\koreaherald_1517_5.json" />
+    <Content Include="data\koreaherald_1517_6.json" />
+    <Content Include="data\koreaherald_1517_7.json" />
+  </ItemGroup>
+  <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
+  <!-- Uncomment the CoreCompile target to enable the Build command in
+       Visual Studio and specify your pre- and post-build commands in
+       the BeforeBuild and AfterBuild targets below. -->
+  <!--<Target Name="CoreCompile" />-->
+  <Target Name="BeforeBuild">
+  </Target>
+  <Target Name="AfterBuild">
+  </Target>
+</Project>
