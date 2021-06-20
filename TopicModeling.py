@@ -1,15 +1,13 @@
 print("importing modules      ", end = "\r")
 import json
 import pandas as pd
-print("importing umap          ", end = "\r")
-import umap
+
 import numpy as np
 print("importing vectorizer    ", end = "\r")
 #from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.feature_extraction.text import CountVectorizer
 from sentence_transformers import SentenceTransformer
-print("importing hdbscan       ", end = "\r")
-import hdbscan
+
 import os
 import pickle
 
@@ -97,6 +95,7 @@ if os.path.isfile(umap_embd_file_name):
     umap_embeddings = pickle.load(umap_embeds)
 else:
   print(">> Reducing embeddings again")
+  import umap
   umap_embeddings = umap.UMAP(n_neighbors=20, n_components=7, min_dist = 0.02, metric='cosine').fit_transform(embeddings)  
   with open(umap_embd_file_name,"wb") as umap_embeds:
     pickle.dump(umap_embeddings,umap_embeds)
@@ -108,6 +107,7 @@ if os.path.isfile(cluster_file_name):
     cluster = pickle.load(cluster_file)
 else:
   print(">> Clustering embeddings again")
+  import hdbscan
   cluster = hdbscan.HDBSCAN(min_cluster_size=45, metric='euclidean', cluster_selection_method='eom').fit(umap_embeddings)
   with open(cluster_file_name,"wb") as cluster_file:
     pickle.dump(cluster,cluster_file)
