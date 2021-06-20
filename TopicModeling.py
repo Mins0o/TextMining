@@ -16,10 +16,11 @@ result_dir = "./results/"
 result_file_name = result_dir + "Titling.txt"
 
 # The embeddings of the documents can be saved with pickle
-chekc_points_dir = "./checkpoints/"
-embedding_file_name = chekc_points_dir+"embeddings.mdl"
-umap_embd_file_name = chekc_points_dir+"umap_"+embedding_file_name
-cluster_file_name = chekc_points_dir+"cluster_"+embedding_file_name
+check_points_dir = "./checkpoints/"
+embedding_file_name = "embeddings.mdl"
+umap_embd_file_name = check_points_dir+"umap_"+embedding_file_name
+cluster_file_name = check_points_dir+"cluster_"+embedding_file_name
+embedding_file_name = check_points_dir+embedding_file_name
 
 
 data_files=[]
@@ -57,20 +58,21 @@ data = [i[0] for i in all_docs_in_list]
 
 model = SentenceTransformer('paraphrase-mpnet-base-v2')
 if os.path.isfile(embedding_file_name):
-  print(">>Using previous embeddings")
+  print(">> Using previous embeddings")
   with open(embedding_file_name,"rb") as embed_model:
     embeddings = pickle.load(embed_model)
 else:
-  print(">>generating new embeddings")
+  print(">> Generating new embeddings")
   embeddings = model.encode(data, show_progress_bar=True)
   with open(embedding_file_name,"wb") as embed_model:
     pickle.dump(embeddings,embed_model)
 
-def c_tf_idf(documents, m, ngram_range=(3, 4)):
+def c_tf_idf(documents, m, ngram_range=(4, 6)):
     """Class-based TF-IDF: Used BERTopic"""
     #vectorized = tfidfVectorizer(ngram_range=ngram_range, stop_words="english").fit(documents)
     vectorized = CountVectorizer(ngram_range=ngram_range, stop_words="english").fit(documents)
     t = vectorized.transform(documents).toarray()
+    print("calculating")
     tf_idf = np.multiply(np.divide(t.T, t.sum(axis=1)), np.log(np.divide(m, t.sum(axis=0))).reshape(-1, 1))
 
     return tf_idf, vectorized
@@ -99,22 +101,22 @@ with open(result_file_name,'w') as result_txt:
   # Reduce dimension and Cluster
   print("Reducing dimension")
   if os.path.isfile(umap_embd_file_name):
-    print(">>Using previous reduction")
+    print(">> Using previous reduction")
     with open(umap_embd_file_name,"rb") as umap_embeds:
       umap_embeddings = pickle.load(umap_embeds)
   else:
-    print(">>reducing embeddings again")
+    print(">> Reducing embeddings again")
     umap_embeddings = umap.UMAP(n_neighbors=20, n_components=7, min_dist = 0.02, metric='cosine').fit_transform(embeddings)  
     with open(umap_embd_file_name,"wb") as umap_embeds:
       pickle.dump(umap_embeddings,umap_embeds)
   
   print("Clustering")
   if os.path.isfile(cluster_file_name):
-    print(">>Using previous clusters")
+    print(">> Using previous clusters")
     with open(cluster_file_name,"rb") as cluster_file:
       cluster = pickle.load(cluster_file)
   else:
-    print(">>Clustering embeddings again")
+    print(">> Clustering embeddings again")
     cluster = hdbscan.HDBSCAN(min_cluster_size=45, metric='euclidean', cluster_selection_method='eom').fit(umap_embeddings)
     with open(cluster_file_name,"wb") as cluster_file:
       pickle.dump(cluster,cluster_file)
