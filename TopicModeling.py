@@ -95,9 +95,11 @@ y_2016 = all_docs[(all_docs[" time"]>"2016") & (all_docs[" time"]<"2017")]
 y_2017 = all_docs[(all_docs[" time"]>"2017") & (all_docs[" time"]<"2019")]
 
 targets = [all_docs, y_2015, y_2016, y_2017]
+result_names = ["all_docs", "2015","2016","2017"]
 
 # we are calling the document bodies 'data'
 for target_num in range(0,4):
+  print("\n\n",result_names[target_num],"\n\n")
   target_collection = targets[target_num]
   data = list(target_collection.loc[:," body"])
 
