@@ -8,7 +8,7 @@ print("importing vectorizer")
 #from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.feature_extraction.text import CountVectorizer
 from sentence_transformers import SentenceTransformer
-print("hdbscan")
+print("importing hdbscan")
 import hdbscan
 import os
 import pickle
@@ -29,7 +29,7 @@ embedding_file_name = check_points_dir+embedding_file_name
 data_files=[]
 
 # load data into list:data_files
-print("loading data")
+print("...loading data...")
 for corpus in range(8):
 	with open( data_path + str(corpus) + ".json", 'r') as f:
 		data=json.load(f)
@@ -133,7 +133,7 @@ with open(result_file_name,'w') as result_txt:
   docs_df['Doc_ID'] = range(len(docs_df))
   docs_df['Topic'] = cluster.labels_
   docs_df["Title"] = list(all_docs.loc[:,"title"])
-  #docs_df["Date"] = [i[2] for i in all_docs_in_list]
+  docs_df["Date"] = list(all_docs.loc[:," time"])
 
   if(True): 
     docs_per_topic = docs_df.groupby(['Topic'], as_index = False).agg({'Title': ' '.join})
@@ -175,6 +175,7 @@ with open(result_file_name,'w') as result_txt:
       result_txt.write("\n")
 
   if(True):
+    docs_df = docs_df[:10000]
     titles_per_topic = docs_df.groupby(['Topic'], as_index = False).agg({'Doc': ' '.join})
     #scoring ngrams in the collections
     print("scoring ngrams in the collections")
