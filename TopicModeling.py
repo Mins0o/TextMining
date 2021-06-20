@@ -2,17 +2,20 @@ print("Make sure you download\npip3 install numpy --upgrade\npip3 install hdbsca
 print("importing modules      ", end = "\r")
 import json
 import pandas as pd
-
-import numpy as np
-print("importing vectorizer    ", end = "\r")
-#from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.feature_extraction.text import CountVectorizer
-from sentence_transformers import SentenceTransformer
-print("importing hdbscan        ",end = "\r")
-import hdbscan
 import os
 import pickle
 import datetime
+import numpy as np
+
+print("importing vectorizer    ", end = "\r")
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.feature_extraction.text import CountVectorizer
+
+print("importing sent_trans    ", end = "\r")
+from sentence_transformers import SentenceTransformer
+
+print("importing hdbscan        ",end = "\r")
+import hdbscan
 
 pre_path = "."
 data_path = pre_path + "/data/koreaherald_1517_"
@@ -68,6 +71,7 @@ else:
 
 def c_tf_idf(documents, m, ngram_range=(4, 5)):
     vectorized = CountVectorizer(ngram_range=ngram_range, stop_words="english").fit(documents)
+    #vectorized = TfidfVectorizer(ngram_range=ngram_range, stop_words="english").fit(documents)
     t = vectorized.transform(documents).toarray()
     tf = np.divide(t.T, t.sum(axis=1))
     idf = np.log(np.divide(m, t.sum(axis=0))).reshape(-1, 1)
