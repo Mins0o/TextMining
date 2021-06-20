@@ -62,7 +62,7 @@ d_result_file_name = result_dir + "Titling_d"
 
 # The embeddings of the documents can be saved with pickle
 check_points_dir = "./checkpoints/"
-embedding_file_name = "embeddings3"
+embedding_file_name = "embeddings8"
 umap_embd_file_name = check_points_dir+"umap_"+embedding_file_name
 cluster_file_name = check_points_dir+"cluster_"+embedding_file_name
 embedding_file_name = check_points_dir+embedding_file_name
@@ -99,7 +99,7 @@ result_names = ["all_docs", "2015","2016","2017"]
 
 # we are calling the document bodies 'data'
 for target_num in range(0,4):
-  print("\n\n",result_names[target_num],"\n\n")
+  print("\n\n---------------------------------",result_names[target_num],"----------------------------\n\n")
   target_collection = targets[target_num]
   data = list(target_collection.loc[:," body"])
 
@@ -136,7 +136,7 @@ for target_num in range(0,4):
       cluster = pickle.load(cluster_file)
   else:
     print(">> Clustering embeddings again")
-    cluster = hdbscan.HDBSCAN(min_cluster_size=45, metric='euclidean', cluster_selection_method='eom').fit(umap_embeddings)
+    cluster = hdbscan.HDBSCAN(min_cluster_size=15, metric='euclidean', cluster_selection_method='eom').fit(umap_embeddings)
     with open(cluster_file_name+"*"*target_num+".mdl","wb") as cluster_file:
       pickle.dump(cluster,cluster_file)
 
@@ -182,10 +182,10 @@ for target_num in range(0,4):
       for topic_label in top_tens.loc[:,"Topic"]:
         print(topic_label,end="\t")
         print(top_tens.loc[topic_label+1,"Size"],end="\t")
-        print(t_top_n_ngrams[topic_label][:3])
+        print(t_top_n_ngrams[topic_label][:2])
         result_txt.write("{}\t".format(topic_label))
         result_txt.write(top_tens.loc[topic_label+1,"Size"].__repr__()+"\t")
-        for j in t_top_n_ngrams[topic_label][:3]:
+        for j in t_top_n_ngrams[topic_label][:2]:
           result_txt.write(j[0]+"\t")
         result_txt.write("\n")
 
@@ -212,10 +212,10 @@ for target_num in range(0,4):
       for topic_label in top_tens.loc[:,"Topic"]:
         print(topic_label,end="\t")
         print(top_tens.loc[topic_label+1,"Size"],end="\t")
-        print(d_top_n_ngrams[topic_label][:3])
+        print(d_top_n_ngrams[topic_label][:2])
         result_txt.write("{}\t".format(topic_label))
         result_txt.write(top_tens.loc[topic_label+1,"Size"].__repr__()+"\t")
-        for j in d_top_n_ngrams[topic_label][:3]:
+        for j in d_top_n_ngrams[topic_label][:2]:
           result_txt.write(j[0]+"\t")
         result_txt.write("\n")
 
