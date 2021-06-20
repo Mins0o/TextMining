@@ -50,11 +50,11 @@ for corpus in range(8):
 
 
 # all_docs_in_list stores each document bodies, headlines, and dates as [string,,] object in list
-all_docs = data_files[0].loc[:,[" body","title"]]
+all_docs = data_files[0].loc[:,[" body","title"," time"]]
 
 for i in data_files[1:]:
   #all_docs_in_list += i.loc[:,[" body","title"," time"]].values.tolist()
-  all_docs = pd.concat([all_docs,i.loc[:,[" body","title"]]],sort = False)
+  all_docs = pd.concat([all_docs,i.loc[:,[" body","title", " time"]]],sort = False)
 
 # we are calling the document bodies 'data'
 data = list(all_docs.loc[:," body"])
