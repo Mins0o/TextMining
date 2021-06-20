@@ -1,14 +1,14 @@
-print("importing modules")
+print("importing modules      ", end = "\r")
 import json
 import pandas as pd
-print("importing umap")
+print("importing umap          ", end = "\r")
 import umap
 import numpy as np
-print("importing vectorizer")
+print("importing vectorizer    ", end = "\r")
 #from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.feature_extraction.text import CountVectorizer
 from sentence_transformers import SentenceTransformer
-print("importing hdbscan")
+print("importing hdbscan       ", end = "\r")
 import hdbscan
 import os
 import pickle
@@ -16,11 +16,12 @@ import pickle
 pre_path = "."
 data_path = pre_path + "/data/koreaherald_1517_"
 result_dir = "./results/"
-result_file_name = result_dir + "Titling.txt"
+t_result_file_name = result_dir + "Titling_t.txt"
+d_result_file_name = result_dir + "Titling_d.txt"
 
 # The embeddings of the documents can be saved with pickle
 check_points_dir = "./checkpoints/"
-embedding_file_name = "embeddings.mdl"
+embedding_file_name = "embeddings3.mdl"
 umap_embd_file_name = check_points_dir+"umap_"+embedding_file_name
 cluster_file_name = check_points_dir+"cluster_"+embedding_file_name
 embedding_file_name = check_points_dir+embedding_file_name
@@ -29,23 +30,11 @@ embedding_file_name = check_points_dir+embedding_file_name
 data_files=[]
 
 # load data into list:data_files
-print("...loading data...")
+print("...loading data...     ", end = "\r")
 for corpus in range(8):
 	with open( data_path + str(corpus) + ".json", 'r') as f:
 		data=json.load(f)
 	df = pd.DataFrame.from_dict(data)
-
-  # Preprocess N.K
-	# for doc_no in range(len(df.loc[:])):
-	# 	df.loc[str(doc_no),"title"] = df.loc[str(doc_no),"title"].replace("N.K ","NorthKorea ")
-	# 	df.loc[str(doc_no),"title"] = df.loc[str(doc_no),"title"].replace("N. Korea","NorthKorea ")
-	# 	df.loc[str(doc_no),"title"] = df.loc[str(doc_no),"title"].replace("NK ","NorthKorea ")
-	# 	df.loc[str(doc_no),"title"] = df.loc[str(doc_no),"title"].replace("North Korea ","NorthKorea ")
-		
-	# 	df.loc[str(doc_no)," body"] = df.loc[str(doc_no)," body"].replace("N.K ","NorthKorea ")
-	# 	df.loc[str(doc_no)," body"] = df.loc[str(doc_no)," body"].replace("N. Korea ","NorthKorea ")
-	# 	df.loc[str(doc_no)," body"] = df.loc[str(doc_no)," body"].replace("NK ","NorthKorea ")
-	# 	df.loc[str(doc_no)," body"] = df.loc[str(doc_no)," body"].replace("North Korea ","NorthKorea ")
 	data_files.append(df)
 
 
@@ -75,10 +64,8 @@ else:
 def c_tf_idf(documents, m, ngram_range=(4, 5)):
     vectorized = CountVectorizer(ngram_range=ngram_range, stop_words="english").fit(documents)
     t = vectorized.transform(documents).toarray()
-    w = t.sum(axis=1)
-    tf = np.divide(t.T, w)
-    sum_t = t.sum(axis=0)
-    idf = np.log(np.divide(m, sum_t)).reshape(-1, 1)
+    tf = np.divide(t.T, t.sum(axis=1))
+    idf = np.log(np.divide(m, t.sum(axis=0))).reshape(-1, 1)
     tf_idf = np.multiply(tf, idf)
     return tf_idf, vectorized
 
@@ -102,40 +89,42 @@ def extract_topic_sizes(df):
                      .sort_values("Size", ascending=False))
     return topic_sizes
 
-with open(result_file_name,'w') as result_txt:
-  # Reduce dimension and Cluster
-  print("Reducing dimension")
-  if os.path.isfile(umap_embd_file_name):
-    print(">> Using previous reduction")
-    with open(umap_embd_file_name,"rb") as umap_embeds:
-      umap_embeddings = pickle.load(umap_embeds)
-  else:
-    print(">> Reducing embeddings again")
-    umap_embeddings = umap.UMAP(n_neighbors=20, n_components=7, min_dist = 0.02, metric='cosine').fit_transform(embeddings)  
-    with open(umap_embd_file_name,"wb") as umap_embeds:
-      pickle.dump(umap_embeddings,umap_embeds)
-  
-  print("Clustering")
-  if os.path.isfile(cluster_file_name):
-    print(">> Using previous clusters")
-    with open(cluster_file_name,"rb") as cluster_file:
-      cluster = pickle.load(cluster_file)
-  else:
-    print(">> Clustering embeddings again")
-    cluster = hdbscan.HDBSCAN(min_cluster_size=45, metric='euclidean', cluster_selection_method='eom').fit(umap_embeddings)
-    with open(cluster_file_name,"wb") as cluster_file:
-      pickle.dump(cluster,cluster_file)
-  
-  # constructing a data frame:
-  # Rows  |Doc(text body)  |Doc_ID |Topic(labels)  |Title(headline) |Date
-  #       |                 |       |               |                |
-  docs_df = pd.DataFrame(data, columns=["Doc"])
-  docs_df['Doc_ID'] = range(len(docs_df))
-  docs_df['Topic'] = cluster.labels_
-  docs_df["Title"] = list(all_docs.loc[:,"title"])
-  docs_df["Date"] = list(all_docs.loc[:," time"])
+# Reduce dimension and Cluster
+print("Reducing dimension")
+if os.path.isfile(umap_embd_file_name):
+  print(">> Using previous reduction")
+  with open(umap_embd_file_name,"rb") as umap_embeds:
+    umap_embeddings = pickle.load(umap_embeds)
+else:
+  print(">> Reducing embeddings again")
+  umap_embeddings = umap.UMAP(n_neighbors=20, n_components=7, min_dist = 0.02, metric='cosine').fit_transform(embeddings)  
+  with open(umap_embd_file_name,"wb") as umap_embeds:
+    pickle.dump(umap_embeddings,umap_embeds)
 
-  if(True): 
+print("Clustering")
+if os.path.isfile(cluster_file_name):
+  print(">> Using previous clusters")
+  with open(cluster_file_name,"rb") as cluster_file:
+    cluster = pickle.load(cluster_file)
+else:
+  print(">> Clustering embeddings again")
+  cluster = hdbscan.HDBSCAN(min_cluster_size=45, metric='euclidean', cluster_selection_method='eom').fit(umap_embeddings)
+  with open(cluster_file_name,"wb") as cluster_file:
+    pickle.dump(cluster,cluster_file)
+
+# constructing a data frame:
+# Rows  |Doc(text body)  |Doc_ID |Topic(labels)  |Title(headline) |Date
+#       |                |       |               |                |
+docs_df = pd.DataFrame(data, columns=["Doc"])
+docs_df['Doc_ID'] = range(len(docs_df))
+docs_df['Topic'] = cluster.labels_
+docs_df["Title"] = list(all_docs.loc[:,"title"])
+docs_df["Date"] = list(all_docs.loc[:," time"])
+
+
+if(True): 
+  print("\n\nFrom Headlines\n\n")
+  with open(t_result_file_name,'w') as result_txt:
     docs_per_topic = docs_df.groupby(['Topic'], as_index = False).agg({'Title': ' '.join})
     
     #scoring ngrams in the collections
@@ -151,14 +140,12 @@ with open(result_file_name,'w') as result_txt:
     topic_sizes = extract_topic_sizes(docs_df)
     print("Number of Clusters: ",len(topic_sizes))
     result_txt.write(str(len(topic_sizes))+"\n")
-    top_tens = topic_sizes.head(10)
+    top_tens = topic_sizes.head(20)
     print(top_tens)
     result_txt.write(top_tens.to_string()+"\n")
 
     # Print out the top_ten topics' top n ngrams
     for topic_label in top_tens.loc[:,"Topic"]:
-      print(topic_label,end="\t")
-      print(t_top_n_ngrams[topic_label])
       result_txt.write("{}\t".format(topic_label))
       result_txt.write(t_top_n_ngrams[topic_label].__repr__())
       result_txt.write("\n")
@@ -167,15 +154,17 @@ with open(result_file_name,'w') as result_txt:
     for topic_label in top_tens.loc[:,"Topic"]:
       print(topic_label,end="\t")
       print(top_tens.loc[topic_label+1,"Size"],end="\t")
-      print(t_top_n_ngrams[topic_label][:2])
+      print(t_top_n_ngrams[topic_label][:3])
       result_txt.write("{}\t".format(topic_label))
       result_txt.write(top_tens.loc[topic_label+1,"Size"].__repr__()+"\t")
-      for j in t_top_n_ngrams[topic_label][:2]:
+      for j in t_top_n_ngrams[topic_label][:3]:
         result_txt.write(j[0]+"\t")
       result_txt.write("\n")
 
-  if(True):
-    docs_df = docs_df[:10000]
+if(True):
+  print("\n\nFrom Text bodies\n\n")
+  with open(d_result_file_name,'w') as result_txt:
+    docs_df = docs_df[:len(docs_df)//2]
     titles_per_topic = docs_df.groupby(['Topic'], as_index = False).agg({'Doc': ' '.join})
     #scoring ngrams in the collections
     print("scoring ngrams in the collections")
@@ -187,8 +176,6 @@ with open(result_file_name,'w') as result_txt:
 
     # Print out the top_ten topics' top n ngrams
     for topic_label in top_tens.loc[:,"Topic"]:
-      print(topic_label,end="\t")
-      print(d_top_n_ngrams[topic_label])
       result_txt.write("{}\t".format(topic_label))
       result_txt.write(d_top_n_ngrams[topic_label].__repr__())
       result_txt.write("\n")
@@ -197,10 +184,10 @@ with open(result_file_name,'w') as result_txt:
     for topic_label in top_tens.loc[:,"Topic"]:
       print(topic_label,end="\t")
       print(top_tens.loc[topic_label+1,"Size"],end="\t")
-      print(d_top_n_ngrams[topic_label][:2])
+      print(d_top_n_ngrams[topic_label][:3])
       result_txt.write("{}\t".format(topic_label))
       result_txt.write(top_tens.loc[topic_label+1,"Size"].__repr__()+"\t")
-      for j in d_top_n_ngrams[topic_label][:2]:
+      for j in d_top_n_ngrams[topic_label][:3]:
         result_txt.write(j[0]+"\t")
       result_txt.write("\n")
 
