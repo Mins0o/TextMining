@@ -1,3 +1,4 @@
+print("Make sure you download\npip3 install numpy --upgrade\npip3 install hdbscan sentencetransformers umap_learn\n\n")
 print("importing modules      ", end = "\r")
 import json
 import pandas as pd
@@ -7,9 +8,11 @@ print("importing vectorizer    ", end = "\r")
 #from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.feature_extraction.text import CountVectorizer
 from sentence_transformers import SentenceTransformer
-
+print("importing hdbscan        ",end = "\r")
+import hdbscan
 import os
 import pickle
+import datetime
 
 pre_path = "."
 data_path = pre_path + "/data/koreaherald_1517_"
@@ -23,6 +26,10 @@ embedding_file_name = "embeddings3.mdl"
 umap_embd_file_name = check_points_dir+"umap_"+embedding_file_name
 cluster_file_name = check_points_dir+"cluster_"+embedding_file_name
 embedding_file_name = check_points_dir+embedding_file_name
+
+plot_graphs = False
+title_extraction = True
+body_extraction = False
 
 
 data_files=[]
@@ -107,7 +114,6 @@ if os.path.isfile(cluster_file_name):
     cluster = pickle.load(cluster_file)
 else:
   print(">> Clustering embeddings again")
-  import hdbscan
   cluster = hdbscan.HDBSCAN(min_cluster_size=45, metric='euclidean', cluster_selection_method='eom').fit(umap_embeddings)
   with open(cluster_file_name,"wb") as cluster_file:
     pickle.dump(cluster,cluster_file)
@@ -122,7 +128,7 @@ docs_df["Title"] = list(all_docs.loc[:,"title"])
 docs_df["Date"] = list(all_docs.loc[:," time"])
 
 
-if(True): 
+if(title_extraction): 
   print("\n\nFrom Headlines\n\n")
   with open(t_result_file_name,'w') as result_txt:
     docs_per_topic = docs_df.groupby(['Topic'], as_index = False).agg({'Title': ' '.join})
@@ -161,7 +167,7 @@ if(True):
         result_txt.write(j[0]+"\t")
       result_txt.write("\n")
 
-if(False):
+if(body_extraction):
   print("\n\nFrom Text bodies\n\n")
   with open(d_result_file_name,'w') as result_txt:
     docs_df = docs_df[:len(docs_df)//2]
@@ -192,18 +198,55 @@ if(False):
       result_txt.write("\n")
 
 #np.linalg.norm(umap_embeddings[702]-umap_embeddings[1734])
-import nltk
-import matplotlib.pyplot as plt
+if (plot_graphs):
+    import nltk
+    import matplotlib.pyplot as plt
 
-docs_df[docs_df["Topic"]==48]
-nltk.FreqDist([i[3:10] for i in docs_df[docs_df["Topic"]==48]["Date"]])
-nltk.FreqDist([i[3:10] for i in docs_df[docs_df["Topic"]==48]["Date"]]).most_common
+    date_count_1 = nltk.FreqDist([i[:10] for i in docs_df[docs_df["Topic"]==48]["Date"]])
+    date_count_2 = nltk.FreqDist([i[:10] for i in docs_df[docs_df["Topic"]==25]["Date"]])
 
-fe = nltk.FreqDist([i[3:10] for i in docs_df[docs_df["Topic"]==48]["Date"]])
-fe_dict = dict(fe)
-temp_fe = fe_dict.items()
-temp_fe = sorted(temp_fe) 
-date_fe, count_fe = zip(*temp_fe) 
+    date_of_1, count_of_1 = zip(*sorted(dict(date_count_1).items()) ) 
+    date_of_2, count_of_2 = zip(*sorted(dict(date_count_2).items()) ) 
 
-plt.plot(date_fe, count_fe)
-plt.show()
+    date_of_1 = [datetime.datetime.strptime(i,"%Y-%m-%d") for i in date_of_1]
+    date_of_2 = [datetime.datetime.strptime(i,"%Y-%m-%d") for i in date_of_2]
+
+
+
+    plt.plot(date_of_1, count_of_1)
+    plt.plot(date_of_2, count_of_2)
+
+
+    count_of_1 = np.array(count_of_1)
+    count_of_1 = count_of_1 - min(count_of_1)
+    count_of_2 = np.array(count_of_2)
+    count_of_2 = count_of_2 - min(count_of_2)
+
+
+    plt.figure()
+    plt.title('median')
+    normalized_count_1 = count_of_1/np.median(count_of_1)
+    normalized_count_2 = count_of_2/np.median(count_of_2)
+
+    plt.plot(date_of_1, normalized_count_1)
+    plt.plot(date_of_2, normalized_count_2)
+
+    plt.figure()
+    plt.title('mean')
+
+    normalized_count_1 = count_of_1/np.mean(count_of_1)
+    normalized_count_2 = count_of_2/np.mean(count_of_2)
+
+    plt.plot(date_of_1, normalized_count_1)
+    plt.plot(date_of_2, normalized_count_2)
+
+    plt.figure()
+    plt.title('sum')
+
+    normalized_count_1 = count_of_1/sum(count_of_1)
+    normalized_count_2 = count_of_2/sum(count_of_2)
+
+    plt.plot(date_of_1, normalized_count_1)
+    plt.plot(date_of_2, normalized_count_2)
+
+    plt.show()
