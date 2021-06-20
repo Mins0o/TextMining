@@ -254,7 +254,7 @@ for target_num in range(0,4):
       plt.plot(date_of_2, normalized_count_2)
 
       plt.figure()
-      plt.title('mean')
+      plt.title('mean normalized')
 
       normalized_count_1 = count_of_1/np.mean(count_of_1)
       normalized_count_2 = count_of_2/np.mean(count_of_2)
