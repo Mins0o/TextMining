@@ -48,13 +48,13 @@ data = list(all_docs.loc[:," body"])
 
 # Doc2Vec
 
-model = SentenceTransformer('paraphrase-mpnet-base-v2')
 if os.path.isfile(embedding_file_name):
   print(">> Using previous embeddings")
   with open(embedding_file_name,"rb") as embed_model:
     embeddings = pickle.load(embed_model)
 else:
   print(">> Generating new embeddings")
+  model = SentenceTransformer('paraphrase-mpnet-base-v2')
   embeddings = model.encode(data, show_progress_bar=True)
   with open(embedding_file_name,"wb") as embed_model:
     pickle.dump(embeddings,embed_model)
@@ -161,7 +161,7 @@ if(True):
         result_txt.write(j[0]+"\t")
       result_txt.write("\n")
 
-if(True):
+if(False):
   print("\n\nFrom Text bodies\n\n")
   with open(d_result_file_name,'w') as result_txt:
     docs_df = docs_df[:len(docs_df)//2]
@@ -192,3 +192,18 @@ if(True):
       result_txt.write("\n")
 
 #np.linalg.norm(umap_embeddings[702]-umap_embeddings[1734])
+import nltk
+import matplotlib.pyplot as plt
+
+docs_df[docs_df["Topic"]==48]
+nltk.FreqDist([i[3:10] for i in docs_df[docs_df["Topic"]==48]["Date"]])
+nltk.FreqDist([i[3:10] for i in docs_df[docs_df["Topic"]==48]["Date"]]).most_common
+
+fe = nltk.FreqDist([i[3:10] for i in docs_df[docs_df["Topic"]==48]["Date"]])
+fe_dict = dict(fe)
+temp_fe = fe_dict.items()
+temp_fe = sorted(temp_fe) 
+date_fe, count_fe = zip(*temp_fe) 
+
+plt.plot(date_fe, count_fe)
+plt.show()
