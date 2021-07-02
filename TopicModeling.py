@@ -1,4 +1,4 @@
-print("Make sure you download\npip3 install numpy --upgrade\npip3 install hdbscan sentencetransformers umap_learn\n\n")
+print("Make sure you download\npip3 install numpy --upgrade\npip3 install hdbscan sentence_transformers umap_learn\n\n")
 print("importing modules      ", end = "\r")
 import json
 import pandas as pd
@@ -55,14 +55,15 @@ def get_date(df, row_index):
   return date
 
 pre_path = "."
+
 data_path = pre_path + "/data/koreaherald_1517_"
-result_dir = "./results/"
+result_dir = pre_path+"/results/"
 t_result_file_name = result_dir + "Titling_t"
 d_result_file_name = result_dir + "Titling_d"
 
 # The embeddings of the documents can be saved with pickle
-check_points_dir = "./checkpoints/"
-embedding_file_name = "embeddings8"
+check_points_dir = pre_path+"/checkpoints/"
+embedding_file_name = "embeddings"
 umap_embd_file_name = check_points_dir+"umap_"+embedding_file_name
 cluster_file_name = check_points_dir+"cluster_"+embedding_file_name
 embedding_file_name = check_points_dir+embedding_file_name
@@ -105,39 +106,40 @@ for target_num in range(0,4):
 
   # Doc2Vec
 
-  if os.path.isfile(embedding_file_name+"*"*target_num+".mdl"):
+  
+  if os.path.isfile(embedding_file_name+result_names[target_num]+".mdl"):
     print(">> Using previous embeddings")
-    with open(embedding_file_name+"*"*target_num+".mdl","rb") as embed_model:
+    with open(embedding_file_name+result_names[target_num]+".mdl","rb") as embed_model:
       embeddings = pickle.load(embed_model)
   else:
     print(">> Generating new embeddings")
     model = SentenceTransformer('paraphrase-mpnet-base-v2')
     embeddings = model.encode(data, show_progress_bar=True)
-    with open(embedding_file_name+"*"*target_num+".mdl","wb") as embed_model:
+    with open(embedding_file_name+result_names[target_num]+".mdl","wb") as embed_model:
       pickle.dump(embeddings,embed_model)
 
   # Reduce dimension and Cluster
   print("Reducing dimension")
-  if os.path.isfile(umap_embd_file_name+"*"*target_num+".mdl"):
+  if os.path.isfile(umap_embd_file_name+result_names[target_num]+".mdl"):
     print(">> Using previous reduction")
-    with open(umap_embd_file_name+"*"*target_num+".mdl","rb") as umap_embeds:
+    with open(umap_embd_file_name+result_names[target_num]+".mdl","rb") as umap_embeds:
       umap_embeddings = pickle.load(umap_embeds)
   else:
     print(">> Reducing embeddings again")
     import umap
     umap_embeddings = umap.UMAP(n_neighbors=20, n_components=7, min_dist = 0.02, metric='cosine').fit_transform(embeddings)  
-    with open(umap_embd_file_name+"*"*target_num+".mdl","wb") as umap_embeds:
+    with open(umap_embd_file_name+result_names[target_num]+".mdl","wb") as umap_embeds:
       pickle.dump(umap_embeddings,umap_embeds)
 
   print("Clustering")
-  if os.path.isfile(cluster_file_name+"*"*target_num+".mdl"):
+  if os.path.isfile(cluster_file_name+result_names[target_num]+".mdl"):
     print(">> Using previous clusters")
-    with open(cluster_file_name+"*"*target_num+".mdl","rb") as cluster_file:
+    with open(cluster_file_name+result_names[target_num]+".mdl","rb") as cluster_file:
       cluster = pickle.load(cluster_file)
   else:
     print(">> Clustering embeddings again")
     cluster = hdbscan.HDBSCAN(min_cluster_size=15, metric='euclidean', cluster_selection_method='eom').fit(umap_embeddings)
-    with open(cluster_file_name+"*"*target_num+".mdl","wb") as cluster_file:
+    with open(cluster_file_name+result_names[target_num]+".mdl","wb") as cluster_file:
       pickle.dump(cluster,cluster_file)
 
   # constructing a data frame:
@@ -152,7 +154,7 @@ for target_num in range(0,4):
 
   if(title_extraction): 
     print("\n\nFrom Headlines\n\n")
-    with open(t_result_file_name+"*"*target_num+".txt",'w') as result_txt:
+    with open(t_result_file_name+result_names[target_num]+".txt",'w') as result_txt:
       docs_per_topic = docs_df.groupby(['Topic'], as_index = False).agg({'Title': ' '.join})
       
       #scoring ngrams in the collections
@@ -191,7 +193,7 @@ for target_num in range(0,4):
 
   if(body_extraction):
     print("\n\nFrom Text bodies\n\n")
-    with open(d_result_file_name+"*"*target_num+".txt",'w') as result_txt:
+    with open(d_result_file_name+result_names[target_num]+".txt",'w') as result_txt:
       docs_df = docs_df[:len(docs_df)//2]
       titles_per_topic = docs_df.groupby(['Topic'], as_index = False).agg({'Doc': ' '.join})
       #scoring ngrams in the collections
