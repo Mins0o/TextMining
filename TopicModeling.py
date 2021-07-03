@@ -137,7 +137,7 @@ umap_embd_file_name = check_points_dir+"umap_"+embedding_file_name
 cluster_file_name = check_points_dir+"cluster_"+embedding_file_name
 embedding_file_name = check_points_dir+embedding_file_name
 
-plot_graphs = True
+plot_graphs = False
 title_extraction = True
 body_extraction = True
 
@@ -150,6 +150,7 @@ all_docs = targets[0]
 for target_num in range(4):
     print("\n\n---------------------------------",target_names[target_num],"----------------------------\n\n")
     target_collection = targets[target_num]
+    print(len(target_collection))
     indices = list(target_collection.loc[:,"uniqueID"])
 
     embeddings = get_embeddings(all_docs.loc[:," body"],embedding_file_name)
@@ -165,19 +166,9 @@ for target_num in range(4):
     docs_df["Title"] = list(target_collection.loc[:,"title"])
     docs_df["Date"] = list(target_collection.loc[:," time"])
 
-    if(title_extraction): 
-        print("\n\nFrom Headlines\n\n")
-        with open(t_result_file_name+"_"+target_names[target_num]+".txt",'w') as result_txt:
-            docs_per_topic = docs_df.groupby(['Topic'], as_index = False).agg({'Title': ' '.join})
-            
-            #scoring ngrams in the collections
-            print("scoring ngrams in the collections")
-            t_tf_idf, t_count = c_tf_idf(docs_per_topic.Title.values, m=len(target_collection))
-
-            # Now all the documents are clustered
-            # Extract_top_n_words_per_topic(tf_idf, count, per_topic, n=20)
-            # From the text bodies
-            t_top_n_ngrams = extract_top_n_words_per_topic(t_tf_idf, t_count, docs_per_topic, n=20)
+    if(title_extraction):
+        print("\n\nFrom Text bodies\n\n")
+        with open(d_result_file_name+target_names[target_num]+".txt",'w') as result_txt:
 
             # Count how much is in each topics
             topic_sizes = extract_topic_sizes(docs_df)
@@ -187,31 +178,10 @@ for target_num in range(4):
             print(top_tens)
             result_txt.write(top_tens.to_string()+"\n")
 
-            # Print out the top_ten topics' top n ngrams
-            for topic_label in top_tens.loc[:,"Topic"]:
-                result_txt.write("{}\t".format(topic_label))
-                result_txt.write(t_top_n_ngrams[topic_label].__repr__())
-                result_txt.write("\n")
-                result_txt.write("\n")
-            
-            for topic_label in top_tens.loc[:,"Topic"]:
-                print(topic_label,end="\t")
-                print(top_tens.loc[topic_label+1,"Size"],end="\t")
-                print(t_top_n_ngrams[topic_label][:2])
-                result_txt.write("{}\t".format(topic_label))
-                result_txt.write(top_tens.loc[topic_label+1,"Size"].__repr__()+"\t")
-                for j in t_top_n_ngrams[topic_label][:2]:
-                    result_txt.write(j[0]+"\t")
-                result_txt.write("\n")
-
-    if(body_extraction):
-        print("\n\nFrom Text bodies\n\n")
-        with open(d_result_file_name+target_names[target_num]+".txt",'w') as result_txt:
-            docs_df = docs_df[:len(docs_df)//3]
-            titles_per_topic = docs_df.groupby(['Topic'], as_index = False).agg({'Doc': ' '.join})
+            titles_per_topic = docs_df.groupby(['Topic'], as_index = False).agg({'Title': ' '.join})
             #scoring ngrams in the collections
             print("scoring ngrams in the collections")
-            d_tf_idf, d_count = c_tf_idf(titles_per_topic.Doc.values, m=len(target_collection))
+            d_tf_idf, d_count = c_tf_idf(titles_per_topic.Title.values, m=len(target_collection))
             # Now all the documents are clustered
             # Extract_top_n_words_per_topic(tf_idf, count, per_topic, n=20)
             # From the headlines
@@ -235,6 +205,47 @@ for target_num in range(4):
                 result_txt.write("\n")
 
         #np.linalg.norm(umap_embeddings[702]-umap_embeddings[1734])
+
+    if(body_extraction and target_num): 
+        print("\n\nFrom Headlines\n\n")
+        with open(t_result_file_name+"_"+target_names[target_num]+".txt",'w') as result_txt:
+
+            # Count how much is in each topics
+            topic_sizes = extract_topic_sizes(docs_df)
+            print("Number of Clusters: ",len(topic_sizes))
+            result_txt.write(str(len(topic_sizes))+"\n")
+            top_tens = topic_sizes.head(20)
+            print(top_tens)
+            result_txt.write(top_tens.to_string()+"\n")
+
+            docs_df = docs_df[:int(len(docs_df)//2.5)]
+            docs_per_topic = docs_df.groupby(['Topic'], as_index = False).agg({'Doc': ' '.join})
+            
+            #scoring ngrams in the collections
+            print("scoring ngrams in the collections")
+            t_tf_idf, t_count = c_tf_idf(docs_per_topic.Doc.values, m=len(target_collection))
+
+            # Now all the documents are clustered
+            # Extract_top_n_words_per_topic(tf_idf, count, per_topic, n=20)
+            # From the text bodies
+            t_top_n_ngrams = extract_top_n_words_per_topic(t_tf_idf, t_count, docs_per_topic, n=20)
+
+            # Print out the top_ten topics' top n ngrams
+            for topic_label in top_tens.loc[:,"Topic"]:
+                result_txt.write("{}\t".format(topic_label))
+                result_txt.write(t_top_n_ngrams[topic_label].__repr__())
+                result_txt.write("\n")
+                result_txt.write("\n")
+            
+            for topic_label in top_tens.loc[:,"Topic"]:
+                print(topic_label,end="\t")
+                print(top_tens.loc[topic_label+1,"Size"],end="\t")
+                print(t_top_n_ngrams[topic_label][:2])
+                result_txt.write("{}\t".format(topic_label))
+                result_txt.write(top_tens.loc[topic_label+1,"Size"].__repr__()+"\t")
+                for j in t_top_n_ngrams[topic_label][:2]:
+                    result_txt.write(j[0]+"\t")
+                result_txt.write("\n")
 
     if (plot_graphs):
         import nltk
