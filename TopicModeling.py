@@ -1,4 +1,4 @@
-print("Make sure you download\npip3 install numpy --upgrade\npip3 install hdbscan sentence_transformers umap_learn\n\n")
+print("Make sure you download\npip3 install numpy --upgrade\npip3 install sklearn hdbscan sentence_transformers umap_learn\n\n")
 print("importing modules      ", end = "\r")
 import json
 import pandas as pd
@@ -107,8 +107,9 @@ def get_reduction(embeddings, embedding_file_path = "./checkpoints/embeddings"):
             pickle.dump(umap_embeddings,umap_embeds)
     return(umap_embeddings)
 
-def cluster_selected_embeddings(embeddings, embedding_file_path = "./checkpoints/embeddings", selection_indices=[0], selection_identifier_string="0th"):
-    embeddings = embeddings[selection_indices]
+def cluster_selected_embeddings(embeddings, embedding_file_path = "./checkpoints/embeddings", selection_indices=None, selection_identifier_string="of all"):
+    if (not selection_indices == None):
+        embeddings = embeddings[selection_indices]
 
     print("Clustering")
     if os.path.isfile(embedding_file_path+"_"+"cluster"+"_"+selection_identifier_string+".mdl"):
@@ -122,7 +123,44 @@ def cluster_selected_embeddings(embeddings, embedding_file_path = "./checkpoints
             pickle.dump(cluster,cluster_file)
     return(cluster)
 
-base_dir = "."
+def collect_by_column_and_rank(text_output_path, topic_labeled_data, column_title):
+    with open(text_ouput_path,'w') as result_txt:
+        # Count how much is in each topics
+        topic_sizes = extract_topic_sizes(topic_labeled_data)
+        print("Number of Clusters: ",len(topic_sizes))
+        result_txt.write(str(len(topic_sizes))+"\n")
+        top_Ns = topic_sizes.head(20)
+        print(top_Ns)
+        result_txt.write(top_Ns.to_string()+"\n")
+
+        titles_per_topic = topic_labeled_data.groupby(['Topic'], as_index = False).agg({'Title': ' '.join})
+        #scoring ngrams in the collections
+        print("scoring ngrams in the collections")
+        d_tf_idf, d_count = c_tf_idf(titles_per_topic["Title"].values, m=len(target_collection))
+        # Now all the documents are clustered
+        # Extract_top_n_words_per_topic(tf_idf, count, per_topic, n=20)
+        # From the headlines
+        d_top_n_ngrams = extract_top_n_words_per_topic(d_tf_idf, d_count, titles_per_topic, n=20)
+
+        # Print out the top_ten topics' top n ngrams
+        for topic_label in top_Ns.loc[:,"Topic"]:
+            result_txt.write("{}\t".format(topic_label))
+            result_txt.write(d_top_n_ngrams[topic_label].__repr__())
+            result_txt.write("\n")
+            result_txt.write("\n")
+        
+        for topic_label in top_Ns.loc[:,"Topic"]:
+            print(topic_label,end="\t")
+            print(top_Ns.loc[topic_label+1,"Size"],end="\t")
+            print(d_top_n_ngrams[topic_label][:2])
+            result_txt.write("{}\t".format(topic_label))
+            result_txt.write(top_Ns.loc[topic_label+1,"Size"].__repr__()+"\t")
+            for j in d_top_n_ngrams[topic_label][:2]:
+                result_txt.write(j[0]+"\t")
+            result_txt.write("\n")
+
+
+base_dir = "drive/MyDrive/Colab Notebooks/TextMining/GitHub/TextMining"
 data_dir = "/data/"
 
 result_dir = base_dir+"/results/"
@@ -150,7 +188,7 @@ all_docs = targets[0]
 for target_num in range(4):
     print("\n\n---------------------------------",target_names[target_num],"----------------------------\n\n")
     target_collection = targets[target_num]
-    print(len(target_collection))
+    print(len(target_collection)," articles")
     indices = list(target_collection.loc[:,"uniqueID"])
 
     embeddings = get_embeddings(all_docs.loc[:," body"],embedding_file_name)
@@ -174,32 +212,32 @@ for target_num in range(4):
             topic_sizes = extract_topic_sizes(docs_df)
             print("Number of Clusters: ",len(topic_sizes))
             result_txt.write(str(len(topic_sizes))+"\n")
-            top_tens = topic_sizes.head(20)
-            print(top_tens)
-            result_txt.write(top_tens.to_string()+"\n")
+            top_Ns = topic_sizes.head(20)
+            print(top_Ns)
+            result_txt.write(top_Ns.to_string()+"\n")
 
             titles_per_topic = docs_df.groupby(['Topic'], as_index = False).agg({'Title': ' '.join})
             #scoring ngrams in the collections
             print("scoring ngrams in the collections")
-            d_tf_idf, d_count = c_tf_idf(titles_per_topic.Title.values, m=len(target_collection))
+            d_tf_idf, d_count = c_tf_idf(titles_per_topic["Title"].values, m=len(target_collection))
             # Now all the documents are clustered
             # Extract_top_n_words_per_topic(tf_idf, count, per_topic, n=20)
             # From the headlines
             d_top_n_ngrams = extract_top_n_words_per_topic(d_tf_idf, d_count, titles_per_topic, n=20)
 
             # Print out the top_ten topics' top n ngrams
-            for topic_label in top_tens.loc[:,"Topic"]:
+            for topic_label in top_Ns.loc[:,"Topic"]:
                 result_txt.write("{}\t".format(topic_label))
                 result_txt.write(d_top_n_ngrams[topic_label].__repr__())
                 result_txt.write("\n")
                 result_txt.write("\n")
             
-            for topic_label in top_tens.loc[:,"Topic"]:
+            for topic_label in top_Ns.loc[:,"Topic"]:
                 print(topic_label,end="\t")
-                print(top_tens.loc[topic_label+1,"Size"],end="\t")
+                print(top_Ns.loc[topic_label+1,"Size"],end="\t")
                 print(d_top_n_ngrams[topic_label][:2])
                 result_txt.write("{}\t".format(topic_label))
-                result_txt.write(top_tens.loc[topic_label+1,"Size"].__repr__()+"\t")
+                result_txt.write(top_Ns.loc[topic_label+1,"Size"].__repr__()+"\t")
                 for j in d_top_n_ngrams[topic_label][:2]:
                     result_txt.write(j[0]+"\t")
                 result_txt.write("\n")
@@ -214,16 +252,16 @@ for target_num in range(4):
             topic_sizes = extract_topic_sizes(docs_df)
             print("Number of Clusters: ",len(topic_sizes))
             result_txt.write(str(len(topic_sizes))+"\n")
-            top_tens = topic_sizes.head(20)
-            print(top_tens)
-            result_txt.write(top_tens.to_string()+"\n")
+            top_Ns = topic_sizes.head(20)
+            print(top_Ns)
+            result_txt.write(top_Ns.to_string()+"\n")
 
-            docs_df = docs_df[:int(len(docs_df)//2.5)]
+            docs_df = docs_df[:int(len(docs_df)//1.5)]
             docs_per_topic = docs_df.groupby(['Topic'], as_index = False).agg({'Doc': ' '.join})
             
             #scoring ngrams in the collections
             print("scoring ngrams in the collections")
-            t_tf_idf, t_count = c_tf_idf(docs_per_topic.Doc.values, m=len(target_collection))
+            t_tf_idf, t_count = c_tf_idf(docs_per_topic["Doc"].values, m=len(target_collection))
 
             # Now all the documents are clustered
             # Extract_top_n_words_per_topic(tf_idf, count, per_topic, n=20)
@@ -231,18 +269,18 @@ for target_num in range(4):
             t_top_n_ngrams = extract_top_n_words_per_topic(t_tf_idf, t_count, docs_per_topic, n=20)
 
             # Print out the top_ten topics' top n ngrams
-            for topic_label in top_tens.loc[:,"Topic"]:
+            for topic_label in top_Ns.loc[:,"Topic"]:
                 result_txt.write("{}\t".format(topic_label))
                 result_txt.write(t_top_n_ngrams[topic_label].__repr__())
                 result_txt.write("\n")
                 result_txt.write("\n")
             
-            for topic_label in top_tens.loc[:,"Topic"]:
+            for topic_label in top_Ns.loc[:,"Topic"]:
                 print(topic_label,end="\t")
-                print(top_tens.loc[topic_label+1,"Size"],end="\t")
+                print(top_Ns.loc[topic_label+1,"Size"],end="\t")
                 print(t_top_n_ngrams[topic_label][:2])
                 result_txt.write("{}\t".format(topic_label))
-                result_txt.write(top_tens.loc[topic_label+1,"Size"].__repr__()+"\t")
+                result_txt.write(top_Ns.loc[topic_label+1,"Size"].__repr__()+"\t")
                 for j in t_top_n_ngrams[topic_label][:2]:
                     result_txt.write(j[0]+"\t")
                 result_txt.write("\n")
