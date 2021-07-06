@@ -1,11 +1,19 @@
-print("Make sure you download\npip3 install numpy --upgrade\npip3 install sklearn hdbscan sentence_transformers umap_learn\n\n")
+print("Make sure you download\npip3 install sklearn hdbscan sentence_transformers umap_learn matplotlib nltk\npip3 install numpy --upgrade\n\n")
 print("importing modules      ", end = "\r")
 import json
 import pandas as pd
 import os
 import pickle
 import datetime
+
+print("importing numpy    ", end = "\r")
 import numpy as np
+
+print("importing matplotlib.pyplot    ", end = "\r")
+import matplotlib.pyplot as plt
+
+print("importing nltk.FreqDist    ", end = "\r")
+from nltk import FreqDist
 
 print("importing vectorizer    ", end = "\r")
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -123,44 +131,68 @@ def cluster_selected_embeddings(embeddings, embedding_file_path = "./checkpoints
             pickle.dump(cluster,cluster_file)
     return(cluster)
 
-def collect_by_column_and_rank(text_output_path, topic_labeled_data, column_title):
-    with open(text_ouput_path,'w') as result_txt:
+def rank_Ns_after_collect_by_column(text_output_path, topic_labeled_data, column_title="Title", N = 20, verbose = False):
+    with open(text_output_path,'w') as result_txt:
         # Count how much is in each topics
         topic_sizes = extract_topic_sizes(topic_labeled_data)
-        print("Number of Clusters: ",len(topic_sizes))
         result_txt.write(str(len(topic_sizes))+"\n")
-        top_Ns = topic_sizes.head(20)
-        print(top_Ns)
+        top_Ns = topic_sizes.head(N)
         result_txt.write(top_Ns.to_string()+"\n")
 
-        titles_per_topic = topic_labeled_data.groupby(['Topic'], as_index = False).agg({'Title': ' '.join})
+        if(verbose):
+            print("Number of Clusters: ",len(topic_sizes))
+            print(top_Ns)
+
+        concat_column_per_topic = topic_labeled_data.groupby(['Topic'], as_index = False).agg({column_title: ' '.join})
         #scoring ngrams in the collections
         print("scoring ngrams in the collections")
-        d_tf_idf, d_count = c_tf_idf(titles_per_topic["Title"].values, m=len(target_collection))
+        tf_idf, count = c_tf_idf(concat_column_per_topic[column_title].values, m=len(topic_labeled_data))
         # Now all the documents are clustered
         # Extract_top_n_words_per_topic(tf_idf, count, per_topic, n=20)
         # From the headlines
-        d_top_n_ngrams = extract_top_n_words_per_topic(d_tf_idf, d_count, titles_per_topic, n=20)
+        top_n_ngrams = extract_top_n_words_per_topic(tf_idf, count, concat_column_per_topic, n=N)
 
         # Print out the top_ten topics' top n ngrams
         for topic_label in top_Ns.loc[:,"Topic"]:
             result_txt.write("{}\t".format(topic_label))
-            result_txt.write(d_top_n_ngrams[topic_label].__repr__())
+            result_txt.write(top_n_ngrams[topic_label].__repr__())
             result_txt.write("\n")
             result_txt.write("\n")
         
         for topic_label in top_Ns.loc[:,"Topic"]:
             print(topic_label,end="\t")
             print(top_Ns.loc[topic_label+1,"Size"],end="\t")
-            print(d_top_n_ngrams[topic_label][:2])
+            print(top_n_ngrams[topic_label][:2])
             result_txt.write("{}\t".format(topic_label))
             result_txt.write(top_Ns.loc[topic_label+1,"Size"].__repr__()+"\t")
-            for j in d_top_n_ngrams[topic_label][:2]:
+            for j in top_n_ngrams[topic_label][:2]:
                 result_txt.write(j[0]+"\t")
             result_txt.write("\n")
+    return (top_Ns, top_n_ngrams)
 
+def get_date_distribution_per_topic(topic_labeled_data, topic_number = -1):
+    date_count = FreqDist([date_str[:10] for date_str in docs_df[docs_df["Topic"] == topic_number]["Date"]])
+    dates, counts = zip(*sorted(dict(date_count).items()))
+    dates = [datetime.datetime.strptime(date, "%Y-%m-%d") for date in dates]
+    return (dates, counts, date_count)
 
-base_dir = "drive/MyDrive/Colab Notebooks/TextMining/GitHub/TextMining"
+def get_centroids_and_variance(text_output_path, topic_labeled_data, embeddings, topics=[-1], verbose = False):
+    with open(text_output_path,'a') as result_txt:
+        result_txt.write("\n")
+        topic_centroids = []
+        topic_variances = []
+        for selected_topic_i in topics:
+            indices_per_topic = topic_labeled_data[topic_labeled_data["Topic"] == selected_topic_i]["Doc_ID"]
+            centroid = np.mean(embeddings[indices_per_topic], axis = 0)
+            variance = np.mean(np.sqrt(np.sum((embeddings[indices_per_topic] - centroid) ** 2, axis = 1)))
+            topic_centroids.append(centroid)
+            topic_variances.append(variance)
+            if(verbose):
+                print(selected_topic_i, "\t", np.array2string(centroid,precision = 4, separator = ", "), "\t", variance)
+            result_txt.write(str(selected_topic_i) + "\t" + np.array2string(centroid, precision = 4, separator = "\t") + "\t" + str(variance) +"\n")
+        return(topic_centroids, topic_variances)
+
+base_dir = "/Volumes/Personal files/Workspace/GitHub/TextMining"
 data_dir = "/data/"
 
 result_dir = base_dir+"/results/"
@@ -178,6 +210,7 @@ embedding_file_name = check_points_dir+embedding_file_name
 plot_graphs = False
 title_extraction = True
 body_extraction = True
+topic_space_info = True
 
 targets = get_data(base_dir, data_dir, embedding_file_name)
 target_names = ["all_docs", "2015","2016","2017"]
@@ -199,142 +232,38 @@ for target_num in range(4):
     # Rows  |Doc(text body)  |Doc_ID |Topic(labels)  |Title(headline) |Date
     #       |                |       |               |                |
     docs_df = pd.DataFrame(list(target_collection.loc[:," body"]), columns=["Doc"])
-    docs_df['Doc_ID'] = range(len(docs_df))
+    docs_df['Doc_ID'] = list(target_collection.loc[:,"uniqueID"])
     docs_df['Topic'] = cluster.labels_
     docs_df["Title"] = list(target_collection.loc[:,"title"])
     docs_df["Date"] = list(target_collection.loc[:," time"])
 
+
+    if(body_extraction and target_num): 
+        print("\n\nFrom Text Bodies\n\n")
+        body_output_path = d_result_file_name+"_"+target_names[target_num]+".txt"
+        rank_Ns_after_collect_by_column(text_output_path = body_output_path, topic_labeled_data = docs_df, column_title = "Doc")
+
     if(title_extraction):
-        print("\n\nFrom Text bodies\n\n")
-        with open(d_result_file_name+target_names[target_num]+".txt",'w') as result_txt:
-
-            # Count how much is in each topics
-            topic_sizes = extract_topic_sizes(docs_df)
-            print("Number of Clusters: ",len(topic_sizes))
-            result_txt.write(str(len(topic_sizes))+"\n")
-            top_Ns = topic_sizes.head(20)
-            print(top_Ns)
-            result_txt.write(top_Ns.to_string()+"\n")
-
-            titles_per_topic = docs_df.groupby(['Topic'], as_index = False).agg({'Title': ' '.join})
-            #scoring ngrams in the collections
-            print("scoring ngrams in the collections")
-            d_tf_idf, d_count = c_tf_idf(titles_per_topic["Title"].values, m=len(target_collection))
-            # Now all the documents are clustered
-            # Extract_top_n_words_per_topic(tf_idf, count, per_topic, n=20)
-            # From the headlines
-            d_top_n_ngrams = extract_top_n_words_per_topic(d_tf_idf, d_count, titles_per_topic, n=20)
-
-            # Print out the top_ten topics' top n ngrams
-            for topic_label in top_Ns.loc[:,"Topic"]:
-                result_txt.write("{}\t".format(topic_label))
-                result_txt.write(d_top_n_ngrams[topic_label].__repr__())
-                result_txt.write("\n")
-                result_txt.write("\n")
-            
-            for topic_label in top_Ns.loc[:,"Topic"]:
-                print(topic_label,end="\t")
-                print(top_Ns.loc[topic_label+1,"Size"],end="\t")
-                print(d_top_n_ngrams[topic_label][:2])
-                result_txt.write("{}\t".format(topic_label))
-                result_txt.write(top_Ns.loc[topic_label+1,"Size"].__repr__()+"\t")
-                for j in d_top_n_ngrams[topic_label][:2]:
-                    result_txt.write(j[0]+"\t")
-                result_txt.write("\n")
+        print("\n\nFrom Headlines\n\n")
+        title_output_path = t_result_file_name+"_"+target_names[target_num]+".txt"
+        top_Ns, top_N_ngrmas = rank_Ns_after_collect_by_column(title_output_path, docs_df, column_title = "Title",N=20)
 
         #np.linalg.norm(umap_embeddings[702]-umap_embeddings[1734])
 
-    if(body_extraction and target_num): 
-        print("\n\nFrom Headlines\n\n")
-        with open(t_result_file_name+"_"+target_names[target_num]+".txt",'w') as result_txt:
+    if (plot_graphs and title_extraction):
+        dates, counts, date_count = get_date_distribution_per_topic(docs_df, top_Ns["Topic"].values[1])
+        print(date_count)
+        plt.plot(dates,counts)
 
-            # Count how much is in each topics
-            topic_sizes = extract_topic_sizes(docs_df)
-            print("Number of Clusters: ",len(topic_sizes))
-            result_txt.write(str(len(topic_sizes))+"\n")
-            top_Ns = topic_sizes.head(20)
-            print(top_Ns)
-            result_txt.write(top_Ns.to_string()+"\n")
+    if (title_extraction and topic_space_info):
+        top_topics = top_Ns["Topic"].values
+        get_centroids_and_variance(title_output_path, docs_df, reduced_embeddings, top_topics, True)
+        print()
+        whole_centroid = np.mean(reduced_embeddings[docs_df["Doc_ID"]])
+        whole_variance = np.mean(np.sqrt(np.sum((reduced_embeddings[docs_df["Doc_ID"]] - whole_centroid)**2,axis =1)))
+        print(whole_centroid,"\t",whole_variance)
+        
 
-            docs_df = docs_df[:int(len(docs_df)//1.5)]
-            docs_per_topic = docs_df.groupby(['Topic'], as_index = False).agg({'Doc': ' '.join})
-            
-            #scoring ngrams in the collections
-            print("scoring ngrams in the collections")
-            t_tf_idf, t_count = c_tf_idf(docs_per_topic["Doc"].values, m=len(target_collection))
-
-            # Now all the documents are clustered
-            # Extract_top_n_words_per_topic(tf_idf, count, per_topic, n=20)
-            # From the text bodies
-            t_top_n_ngrams = extract_top_n_words_per_topic(t_tf_idf, t_count, docs_per_topic, n=20)
-
-            # Print out the top_ten topics' top n ngrams
-            for topic_label in top_Ns.loc[:,"Topic"]:
-                result_txt.write("{}\t".format(topic_label))
-                result_txt.write(t_top_n_ngrams[topic_label].__repr__())
-                result_txt.write("\n")
-                result_txt.write("\n")
-            
-            for topic_label in top_Ns.loc[:,"Topic"]:
-                print(topic_label,end="\t")
-                print(top_Ns.loc[topic_label+1,"Size"],end="\t")
-                print(t_top_n_ngrams[topic_label][:2])
-                result_txt.write("{}\t".format(topic_label))
-                result_txt.write(top_Ns.loc[topic_label+1,"Size"].__repr__()+"\t")
-                for j in t_top_n_ngrams[topic_label][:2]:
-                    result_txt.write(j[0]+"\t")
-                result_txt.write("\n")
-
-    if (plot_graphs):
-        import nltk
-        import matplotlib.pyplot as plt
-
-        date_count_1 = nltk.FreqDist([i[:10] for i in docs_df[docs_df["Topic"]==48]["Date"]])
-        date_count_2 = nltk.FreqDist([i[:10] for i in docs_df[docs_df["Topic"]==25]["Date"]])
-
-        date_of_1, count_of_1 = zip(*sorted(dict(date_count_1).items()) ) 
-        date_of_2, count_of_2 = zip(*sorted(dict(date_count_2).items()) ) 
-
-        date_of_1 = [datetime.datetime.strptime(i,"%Y-%m-%d") for i in date_of_1]
-        date_of_2 = [datetime.datetime.strptime(i,"%Y-%m-%d") for i in date_of_2]
-
-
-
-        plt.plot(date_of_1, count_of_1)
-        plt.plot(date_of_2, count_of_2)
-
-
-        count_of_1 = np.array(count_of_1)
-        count_of_1 = count_of_1 - min(count_of_1)
-        count_of_2 = np.array(count_of_2)
-        count_of_2 = count_of_2 - min(count_of_2)
-
-
-        plt.figure()
-        plt.title('median')
-        normalized_count_1 = count_of_1/np.median(count_of_1)
-        normalized_count_2 = count_of_2/np.median(count_of_2)
-
-        plt.plot(date_of_1, normalized_count_1)
-        plt.plot(date_of_2, normalized_count_2)
-
-        plt.figure()
-        plt.title('mean normalized')
-
-        normalized_count_1 = count_of_1/np.mean(count_of_1)
-        normalized_count_2 = count_of_2/np.mean(count_of_2)
-
-        plt.plot(date_of_1, normalized_count_1)
-        plt.plot(date_of_2, normalized_count_2)
-
-        plt.figure()
-        plt.title('sum')
-
-        normalized_count_1 = count_of_1/sum(count_of_1)
-        normalized_count_2 = count_of_2/sum(count_of_2)
-
-        plt.plot(date_of_1, normalized_count_1)
-        plt.plot(date_of_2, normalized_count_2)
-
-        plt.show()
-
+if (plot_graphs and title_extraction):
+    plt.show()
+        
